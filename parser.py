@@ -589,16 +589,16 @@ def test_parser():
     print("=== Basic Tests ===")
     
     p1 = Parser("a")
-    ast1 = p1.parse()
-    print("Test 1 - 'a':", ast1)
+    matcher1 = p1.matcher("a")
+    print("Test 1 - 'a':", matcher1.ast, matcher1.match())
     
     p2 = Parser("abc")
-    ast2 = p2.parse()
-    print("\nTest 2 - 'abc':", ast2)
+    matcher2 = p2.matcher('abd')
+    print("\nTest 2 - 'abc':", matcher2.ast, matcher2.match())
     
     p3 = Parser("a|b")
-    ast3 = p3.parse()
-    print("\nTest 3 - 'a|b':", ast3)
+    matcher3 = p3.matcher("hello")
+    print("\nTest 3 - 'a|b':", matcher3.ast, matcher3.match())
     
     print("\n=== Quantifier Tests ===")
     

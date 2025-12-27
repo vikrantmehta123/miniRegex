@@ -100,15 +100,14 @@ class Matcher:
         """
 
         # try to match the AST starting from position 0
-        # match_node returns the ending position if successful, or None if it fails
-        end_pos = self.match_node(self.ast, 0)
+        for end_pos in self.match_node(self.ast, 0):
 
-        # We return True only if the pattern entirely matches the input_string
-        # Later if required, we can look at partial matching, etc.
-        if end_pos is not None and end_pos == self.length:
-            return True
-        else:
-            return False
+            # We only consider it a full match if we consumed the entire string
+            if end_pos == self.length:
+                return True
+        
+        # If we tried all possibilities and none consumed the entire string, we fail
+        return False
 
     def match_node(self, node, pos):
         """
@@ -121,53 +120,56 @@ class Matcher:
             node: an ASTNode instance to match against the input
             pos: The position in the input string to start matching from
 
-        Returns:
+        Yields:
             The position after successfully matching the input_string, or None if no match
+
+        Important: If a node cannot match at all, this generator simply returns
+        without yielding anything. The caller will see an empty iteration.
         """
 
         # Basic sanity check
         if pos > self.length:
             # we are past the end- only Empty node can match here
             if isinstance(node, Empty):
-                return pos
-            return None
+                yield pos
+            return
 
         # Dispatch to appropriate matching functions
         if isinstance(node, Character):
             # A literal character like 'a'
-            return self.match_character(node, pos)
+            yield from self.match_character(node, pos)
         
         elif isinstance(node, Empty):
             # An empty match - always succeeds without consuming input
-            return self.match_empty(node, pos)
+            yield from self.match_empty(node, pos)
 
         elif isinstance(node, Concatenation):
             # a sequence like "abc" that must match in order
-            return self.match_concatenation(node, pos)
+            yield from self.match_concatenation(node, pos)
 
         elif isinstance(node, Alternation):
             # An alternation like "a|b|c"
-            return self.match_alternation(node, pos)
+            yield from self.match_alternation(node, pos)
 
         elif isinstance(node, Quantifier):
             # an atom like a+, a*, a{2,5} etc.
-            return self.match_quantifier(node, pos)
+            yield from self.match_quantifier(node, pos)
 
         elif isinstance(node, Dot):
             # the dot metacharacter that matches everything except newline
-            return self.match_dot(node, pos)
+            yield from self.match_dot(node, pos)
 
         elif isinstance(node, CharacterClass):
             # A character class like [abc] or [^0-9]
-            return self.match_character_class(node, pos)
+            yield from self.match_character_class(node, pos)
 
         elif isinstance(node, Group):
             # A capturing, named, or non-capturing group
-            return self.match_group(node, pos)
+            yield from self.match_group(node, pos)
 
         elif isinstance(node, Anchor):
             # An anchor like ^ or $ or \b
-            return self.match_anchor(node, pos)
+            yield from self.match_anchor(node, pos)
 
         else:
             # There is a new AST type for which we haven't written the match function
@@ -182,19 +184,19 @@ class Matcher:
             node: the ASTNode of type Character
             pos: the idx in the string
         
-        Returns:
+        Yields:
             pos + 1 if the character matches, or None if it doesn't / we're past the input
         """
-
         if pos >= self.length:
-            return None
+            return # Don't yield anything
 
         # Check if the character is matching or not
         if self.input[pos] == node.value:
             # pos + 1 because we have consumed one character and we need to move forward
-            return pos + 1
+            yield pos + 1
 
-        return None
+        # If the character doesn't match, we simply return without yielding.
+        # The caller will see an empty iteration, which represents "no match found"
 
     def match_empty(self, node: Empty, pos):
         """
@@ -208,11 +210,11 @@ class Matcher:
             node: an Empty node
             pos: the current position in the input
 
-        Returns:
+        Yields:
             the same position (Empty match always succeeds)
         """
 
-        return pos
+        yield pos
 
     def match_concatenation(self, node: Concatenation, pos):
         """
@@ -227,26 +229,48 @@ class Matcher:
             node: A Concatenation node
             pos: the current position in the input string
 
-        Returns:
+        Yields:
             the final position after matching all the items, or None if failure
         """
-
-        current_pos = pos
-
-        # Iterate over the items and try to match each one of them
-        for item in node.items:
-            new_pos = self.match_node(item, current_pos)
-
-            # Check if the item matched successfully
-            if new_pos is None:
-                # The match failed. One item's failed match means entire Concatenation
-                # fails the match. So return None
-                return None
-
-            current_pos = new_pos
+        # Base case: if there are no items to match, we succeed immediately
+        # without consuming any input. This is like matching an empty string.
+        if not node.items:
+            yield pos
+            return
         
-        # the match succeeded, so return the final position after matching all items
-        return current_pos
+        # Recursive case: we need to match the first item, then the rest
+        first_item = node.items[0]
+        remaining_items = node.items[1:]
+
+        # Remember, match_node is a generator, so this loop will iterate through
+        # all the different ways the first item can successfully match
+        for pos_after_first in self.match_node(first_item, pos):
+            # We've successfully matched the first item, and we're now at
+            # pos_after_first. Now we need to see if we can match the remaining items
+            # starting from this new position.
+            
+            # Special case: if there are no remaining items, we're done!
+            # The first item was the last item, so we've matched the entire concatenation
+            if not remaining_items:
+                yield pos_after_first
+            else:
+                # There are more items to match. We create a temporary Concatenation
+                # node for the remaining items and try to match it recursively.
+                rest_concatenation = Concatenation(remaining_items)
+                
+                # Try to match the rest starting from pos_after_first
+                # This is another generator, so we iterate over all the ways
+                # the rest can match
+                for final_pos in self.match_node(rest_concatenation, pos_after_first):
+                    # Success! We found a way to match both the first item AND
+                    # all the remaining items. This is a complete solution, so yield it.
+                    yield final_pos
+                
+                # If the inner loop didn't yield anything, it means the remaining items
+                # couldn't match starting from pos_after_first. That's okay! The outer
+                # loop will automatically try the next way the first item can match.
+                # This is backtracking in action - we don't need to explicitly say
+                # "that didn't work, try again." The loop structure handles it for us.
 
     def match_alternation(self, node: Alternation, pos):
         """
@@ -261,19 +285,20 @@ class Matcher:
             node: An Alternation node
             pos: the current position in the input string
 
-        Returns:
+        Yields:
             the position after matching the first successful alternative, or None
             if all the alternatives fail
         """
 
         for alternative in node.alternatives:
-            result_pos = self.match_node(alternative, pos)
+            for result_pos in self.match_node(alternative, pos):
+                yield result_pos
 
-            # Check if the match succeeded.
-            if result_pos is not None:
-                return result_pos
-
-        return None
+        # If no alternatives matched, we simply return without yielding
+        # We yield results from ALL alternatives that match, not just the first.
+        # This is important for backtracking. If the first matching alternative
+        # doesn't lead to a complete pattern match later on, the calling code can
+        # try the results from other alternatives.
 
     def match_dot(self, node: Dot, pos):
         """
@@ -286,22 +311,22 @@ class Matcher:
             node: A Dot node (we don't actually need to examine it)
             pos: Current position in the input string
     
-        Returns:
+        Yields:
             pos + 1 if there's a non-newline character to match, None otherwise
         """
 
         # Sanity check: Is there input string still to be consumed?
         if pos >= self.length:
-            return None
+            return
 
         char = self.input[pos]
 
         # If char is a newline, match fails.
         if char == '\n':
-            return None
+            return
         
         # if the char is not a newline, we match one character successfully. Advance pos 
-        return pos + 1
+        yield pos + 1
 
     def match_character_class(self, node:CharacterClass, pos):
         """
@@ -317,12 +342,12 @@ class Matcher:
             node: the CharacterClass node
             pos: the current position in the input
         
-        Returns:
+        Yields:
             pos + 1 if successful match, None otherwise.
         """
         # Sanity check
         if pos >= self.length:
-            return None
+            return
         
         char = self.input[pos]
 
@@ -381,9 +406,7 @@ class Matcher:
             matches = char_in_class
 
         if matches:
-            return pos + 1
-        else:
-            return None
+            yield pos + 1
 
     def match_group(self, node:Group, pos):
         """
@@ -393,13 +416,13 @@ class Matcher:
             node: a Group node
             pos: current position in the input string
 
-        Returns:
+        Yields:
             the position after matching the inner pattern, or None if it fails
         """
 
         # The group is itself has a "regex" attribute, which is ASTNode.
         # Recursively match_node
-        return self.match_node(node.regex, pos)
+        yield from self.match_node(node.regex, pos)
 
     def match_anchor(self, node:Anchor, pos):
         """
@@ -412,19 +435,17 @@ class Matcher:
             node: the Anchor node
             pos: the current position in the input
         
-        Returns:
+        Yields:
             pos if the anchor validation is successful, otherwise None
         """
 
         if node.anchor_type == 'start':
             if pos == 0:
-                return pos
-            return None
+                yield pos
 
         elif node.anchor_type == 'end':
             if pos == self.length:
-                return pos
-            return None
+                yield pos
 
         elif node.anchor_type == 'word':
             # \b matches at a word boundary
@@ -446,8 +467,7 @@ class Matcher:
             # Word boundary exists when one side is word char and the other isn't
             # That is, before_is_word and after_is_word shouldn't be same
             if before_is_word != after_is_word:
-                return pos
-            return None
+                yield pos
         
         elif node.anchor_type == 'non-word':
             # \B matches where there is NOT a word boundary. i.e. opposite of \b
@@ -468,17 +488,145 @@ class Matcher:
             # both sides aren't word chars
             # That is, before_is_word and after_is_word should be same
             if before_is_word == after_is_word:
-                return pos
-            return None
+                yield pos
         else:
             raise ValueError(f"Unknown anchor type: {node.anchor_type}")
 
-
-    def match_quantifier(self, node:Quantifier, pos):
+    def match_quantifier(self, node, pos):
         """
-        Matches a quantified pattern like a*, a+, a*?, a{2, 5}, etc.
-
+        Match a quantified expression with full backtracking support.
         
+        Quantifiers are what make regex patterns truly powerful and flexible. They
+        allow you to specify that something should repeat: zero or more times (*),
+        one or more times (+), zero or one time (?), or a specific range of times
+        like {2,5}. But here's the challenge: when a quantifier can match in multiple
+        ways (say, matching 2, 3, or 4 times), which way should we choose?
+        
+        This is where backtracking becomes essential. We can't know upfront which
+        number of repetitions will allow the entire pattern to match successfully.
+        We need to try different possibilities. The solution is to yield all valid
+        possibilities and let the calling code (typically a concatenation) try each
+        one until it finds one that works.
+        
+        Quantifiers come in two flavors: greedy and lazy.
+        - Greedy quantifiers (like a*, a+, a{2,5}) try to match as much as possible
+          first, then backtrack to fewer matches if needed. They yield maximum matches
+          first, then progressively fewer matches.
+        - Lazy quantifiers (like a*?, a+?, a{2,5}?) try to match as little as possible
+          first, then expand to more matches if needed. They yield minimum matches
+          first, then progressively more matches.
+        
+        The algorithm has two phases:
+        1. Discovery: Match the atom repeatedly to discover all valid repetition counts
+        2. Yielding: Yield the positions in the order determined by greediness
+        
+        Args:
+            node: a Quantifier node with atom, min_count, max_count, and greedy attributes
+            pos: current position in the input string
+        
+        Yields:
+            Positions after different numbers of successful matches of the atom,
+            in an order determined by the greedy flag. For greedy quantifiers, yields
+            positions from maximum matches down to minimum. For lazy quantifiers,
+            yields positions from minimum matches up to maximum.
         """
-
-        pass
+        
+        # Phase 1: Discovery - figure out all the ways we can match this quantifier
+        # We'll try to match the atom repeatedly and record the position after each match
+        
+        # match_positions[i] is the position after matching the atom i times
+        # We start with position after zero matches, which is just the current position
+        match_positions = [pos]
+        
+        current_pos = pos
+        match_count = 0
+        
+        # Keep trying to match the atom one more time until we can't anymore
+        # or until we hit the maximum allowed repetitions
+        while True:
+            # Check if we've reached the maximum count (if there is one)
+            # max_count can be None for unbounded quantifiers like * and +
+            if node.max_count is not None and match_count >= node.max_count:
+                # We've reached the limit, stop trying to match more
+                break
+            
+            # Try to match the atom one more time starting from current_pos
+            # Remember, match_node returns a generator that yields possible positions
+            # For the purpose of counting repetitions, we only want to know if the
+            # atom CAN match, and if so, where it ends. We take the first successful
+            # match (if any) and use that to determine if we can continue.
+            
+            matched_once = False
+            for new_pos in self.match_node(node.atom, current_pos):
+                # The atom successfully matched! Take this first match.
+                # We don't explore other ways the atom could match here because
+                # we're just trying to count how many times total it can match,
+                # not exploring all the internal variations of each match.
+                matched_once = True
+                
+                # Important edge case: zero-width matches
+                # If the atom matched but didn't consume any characters (new_pos == current_pos),
+                # we need to be careful. This can happen with patterns like (a*) matching
+                # against "bbb" - the a* matches zero times, which is a zero-width match.
+                # If we allow infinite zero-width matches, we'll loop forever.
+                # So we allow ONE zero-width match and then stop.
+                if new_pos == current_pos:
+                    # Zero-width match. Record it and stop trying to match more.
+                    match_count += 1
+                    match_positions.append(new_pos)
+                    # Set matched_once to True so we break out of the while loop
+                    # But also break from this for loop immediately
+                    break
+                
+                # Normal match that consumed characters
+                match_count += 1
+                current_pos = new_pos
+                match_positions.append(new_pos)
+                
+                # We only take the first way the atom can match at this position
+                # because we're building a count of sequential matches, not exploring
+                # all possible ways to match
+                break
+            
+            # If the atom didn't match at all, we can't match any more times
+            if not matched_once:
+                break
+        
+        # Phase 2: Validation - check if we met the minimum requirement
+        # For example, a+ requires at least one match, a{2,5} requires at least two
+        if match_count < node.min_count:
+            # We couldn't match enough times to satisfy the minimum
+            # This quantifier fails completely, so don't yield anything
+            return
+        
+        # Phase 3: Yielding - now yield positions in the appropriate order
+        # The order depends on whether the quantifier is greedy or lazy
+        
+        if node.greedy:
+            # Greedy: try maximum matches first, then backtrack to fewer
+            # We iterate from match_count down to min_count
+            # For example, if we matched 5 times and minimum is 2, we try:
+            # 5 matches, then 4, then 3, then 2
+            for num_matches in range(match_count, node.min_count - 1, -1):
+                yield match_positions[num_matches]
+                # The calling code will try this number of matches. If it doesn't
+                # work out (the rest of the pattern fails), it will ask us for the
+                # next value, and we'll yield the position after one fewer match.
+                # This is backtracking in action!
+        
+        else:
+            # Lazy: try minimum matches first, then expand to more if needed
+            # We iterate from min_count up to match_count
+            # For example, if minimum is 2 and we matched 5 times, we try:
+            # 2 matches, then 3, then 4, then 5
+            for num_matches in range(node.min_count, match_count + 1):
+                yield match_positions[num_matches]
+                # The calling code will try this number of matches. If it doesn't
+                # work out, it will ask us for more, and we'll yield the position
+                # after one more match. This is how lazy quantifiers expand on demand.
+        
+        # When we've yielded all possibilities and the calling code asks for more,
+        # this generator will be exhausted (raise StopIteration), and the calling
+        # code will know there are no more ways to match this quantifier.
+        # This signals that we need to backtrack even further, perhaps to an earlier
+        # choice point in the pattern.
