@@ -1,70 +1,4 @@
-## ASTNode classes
-
-class ASTNode:
-    """Base class for all AST nodes"""
-
-    def __repr__(self):
-        """Provide a readable string representation for debugging."""
-        
-        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
-        return f"{self.__class__.__name__}({attrs})"
-
-class Character(ASTNode):
-    """Represents a single literal character"""
-
-    def __init__(self, val):
-        self.value = val
-
-class Empty(ASTNode):
-    """Represents an empty match (matches the empty string)"""
-    pass
-
-class Concatenation(ASTNode):
-    """Represents a sequence of regex items that must match in order."""
-    
-    def __init__(self, items):
-        self.items = items # List of ASTNode objects
-
-class Alternation(ASTNode):
-    """Represents a choice between multiple alternatives i.e. '|' operator in regex."""
-    
-    def __init__(self, alternatives):
-        self.alternatives = alternatives
-
-class Quantifier(ASTNode):
-    """Represents a quantified expression (atom with repetition)."""
-
-    def __init__(self, atom, min_count, max_count, greedy=True):
-        self.atom = atom
-        self.min_count = min_count # minimum repetitions. Eg. 0 for *, 1 for +.
-        self.max_count = max_count # None if unlimited
-        self.greedy = greedy # Set to False for lazy quantifiers like *?
-
-class Dot(ASTNode):
-    """Represents the dot metacharacter (matches any character except newline)."""
-    pass
-
-class CharacterClass(ASTNode):
-    """Represents a character class like [abc] or [^0-9]."""
-
-    def __init__(self, items, negated=False):
-        self.items = items
-        self.negated = negated
-
-class Group(ASTNode):
-    """Represents a capturing or non-capturing group."""
-
-    def __init__(self, regex, name=None, capturing=None):
-        self.regex = regex # The grammar has recursive structure. The ASTNode inside the group.
-        self.name = name # Group name for named captures, else None
-        self.capturing = capturing # False for non-capturing groups
-
-
-class Anchor(ASTNode):
-    """Reprsents an anchor (^, $, \\b, \B)"""
-
-    def __init__(self, anchor_type):
-        self.anchor_type = anchor_type  # One of: 'start', 'end', 'word', 'non-word'
+from matcher import *
 
 """
 The parser will use recursive descent parsing algorithm to parse a regex pattern.
@@ -634,9 +568,21 @@ class Parser:
             # For any other character after backslash, treat it as literal.
             # This is a permissive approach. Some regex engines would throw an error here.
             return Character(char)
+    
+    def matcher(self, input_string):
+        """
+        Create a Matcher for the pattern.
 
+        Args:
+            input_string: the text to match against
 
-# Testing code
+        Returns:
+            A Matcher object ready to perform matching
+        """
+        
+        ast = self.parse()
+        return Matcher(ast, input_string)
+
 def test_parser():
     """Test our parser with a comprehensive set of examples."""
     
