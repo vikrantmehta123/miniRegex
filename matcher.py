@@ -110,7 +110,6 @@ class Matcher:
 
             # We only consider it a full match if we consumed the entire string
             if end_pos == self.length:
-                print(self.groups)
                 return True
         
         # If we tried all possibilities and none consumed the entire string, we fail
