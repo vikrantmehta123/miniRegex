@@ -92,7 +92,13 @@ class Matcher:
         self.match_end = None
         self.matched = False
 
+        # Store group captures as a list of tuples: (start_pos, end_pos, name)
+        # The index in the list corresponds to the group_number.
+        # For non-capturing groups, we don't add anything
         self.groups = [ ]
+
+        # Counter to keep track of which group number we're at as we traverse the AST.
+        self.group_counter = 0
 
     def match(self):
         """
@@ -104,6 +110,7 @@ class Matcher:
 
             # We only consider it a full match if we consumed the entire string
             if end_pos == self.length:
+                print(self.groups)
                 return True
         
         # If we tried all possibilities and none consumed the entire string, we fail
@@ -422,7 +429,33 @@ class Matcher:
 
         # The group is itself has a "regex" attribute, which is ASTNode.
         # Recursively match_node
-        yield from self.match_node(node.regex, pos)
+
+        # Non-capturing group stores nothing
+        if node.capturing == False:
+            yield from self.match_node(node.regex, pos)
+        
+        group_num = self.group_counter
+        self.group_counter += 1
+
+        # Try to match the inner regex
+        for end_pos in self.match_node(node.regex, pos):
+
+            # If the inner pattern matched successfully then capture the group
+            capture = (pos, end_pos, node.name)
+
+            # Make sure that the groups list is big enough to store the group
+            while len(self.groups) <= group_num:
+                self.groups.append(None)
+
+            self.groups[group_num] = capture
+
+            yield end_pos
+
+            # Note: If backtracking occurs and this match doesn't lead to overall success,
+            # the calling code will request the next match from this generator.
+            # When we try a different match, we'll overwrite this capture with new values.
+            # This is actually the behavior we want - only the final successful path
+            # through the pattern should have its captures recorded.            
 
     def match_anchor(self, node:Anchor, pos):
         """
