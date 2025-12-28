@@ -566,55 +566,29 @@ class Matcher:
         
         current_pos = pos
         match_count = 0
-        
+                
         # Keep trying to match the atom one more time until we can't anymore
-        # or until we hit the maximum allowed repetitions
         while True:
-            # Check if we've reached the maximum count (if there is one)
-            # max_count can be None for unbounded quantifiers like * and +
             if node.max_count is not None and match_count >= node.max_count:
-                # We've reached the limit, stop trying to match more
                 break
-            
-            # Try to match the atom one more time starting from current_pos
-            # Remember, match_node returns a generator that yields possible positions
-            # For the purpose of counting repetitions, we only want to know if the
-            # atom CAN match, and if so, where it ends. We take the first successful
-            # match (if any) and use that to determine if we can continue.
             
             matched_once = False
             for new_pos in self.match_node(node.atom, current_pos):
-                # The atom successfully matched! Take this first match.
-                # We don't explore other ways the atom could match here because
-                # we're just trying to count how many times total it can match,
-                # not exploring all the internal variations of each match.
                 matched_once = True
                 
-                # Important edge case: zero-width matches
-                # If the atom matched but didn't consume any characters (new_pos == current_pos),
-                # we need to be careful. This can happen with patterns like (a*) matching
-                # against "bbb" - the a* matches zero times, which is a zero-width match.
-                # If we allow infinite zero-width matches, we'll loop forever.
-                # So we allow ONE zero-width match and then stop.
                 if new_pos == current_pos:
                     # Zero-width match. Record it and stop trying to match more.
                     match_count += 1
                     match_positions.append(new_pos)
-                    # Set matched_once to True so we break out of the while loop
-                    # But also break from this for loop immediately
+                    matched_once = False  # Set to False to trigger outer loop break
                     break
                 
                 # Normal match that consumed characters
                 match_count += 1
                 current_pos = new_pos
                 match_positions.append(new_pos)
-                
-                # We only take the first way the atom can match at this position
-                # because we're building a count of sequential matches, not exploring
-                # all possible ways to match
                 break
             
-            # If the atom didn't match at all, we can't match any more times
             if not matched_once:
                 break
 
