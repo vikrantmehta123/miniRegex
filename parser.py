@@ -602,17 +602,17 @@ def test_parser():
     
     print("\n=== Quantifier Tests ===")
     
-    p4 = Parser("a*")
-    ast4 = p4.parse()
-    print("Test 4 - 'a*':", ast4)
+    p4 = Parser("a*a")
+    matcher4 = p4.matcher("aaaa")
+    print("Test 4 - 'a*a':", matcher4.ast, matcher4.match())
     
     p5 = Parser("a*?")
     ast5 = p5.parse()
     print("\nTest 5 - 'a*?':", ast5)
     
     p6 = Parser("a{3}")
-    ast6 = p6.parse()
-    print("\nTest 6 - 'a{3}':", ast6)
+    matcher6 = p6.matcher("aaa")
+    print("\nTest 6 - 'a{3}':", matcher6.ast, matcher6.match())
     
     p7 = Parser("a{2,5}")
     ast7 = p7.parse()

@@ -492,7 +492,7 @@ class Matcher:
         else:
             raise ValueError(f"Unknown anchor type: {node.anchor_type}")
 
-    def match_quantifier(self, node, pos):
+    def match_quantifier(self, node:Quantifier, pos):
         """
         Match a quantified expression with full backtracking support.
         
@@ -501,12 +501,6 @@ class Matcher:
         one or more times (+), zero or one time (?), or a specific range of times
         like {2,5}. But here's the challenge: when a quantifier can match in multiple
         ways (say, matching 2, 3, or 4 times), which way should we choose?
-        
-        This is where backtracking becomes essential. We can't know upfront which
-        number of repetitions will allow the entire pattern to match successfully.
-        We need to try different possibilities. The solution is to yield all valid
-        possibilities and let the calling code (typically a concatenation) try each
-        one until it finds one that works.
         
         Quantifiers come in two flavors: greedy and lazy.
         - Greedy quantifiers (like a*, a+, a{2,5}) try to match as much as possible
@@ -591,7 +585,7 @@ class Matcher:
             # If the atom didn't match at all, we can't match any more times
             if not matched_once:
                 break
-        
+
         # Phase 2: Validation - check if we met the minimum requirement
         # For example, a+ requires at least one match, a{2,5} requires at least two
         if match_count < node.min_count:
