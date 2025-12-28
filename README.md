@@ -65,30 +65,7 @@ concatenation   → quantified*
 quantified      → atom quantifier?
 quantifier      → ('*' | '+' | '?') '?'? | '{' number '}' '?'? | '{' number ',' '}' '?'? | '{' number ',' number '}' '?'?
 atom            → character | '.' | character-class | group | anchor | escape-sequence
-character       → any character except: . * + ? | ( ) [ ] { } ^ $ \
-character-class → '[' '^'? class-item+ ']'
-class-item      → class-character | class-character '-' class-character | escape-sequence
-class-character → any character except: ] \ - (in range position) ^ (at start)
-group           → '(' regex ')' | '(?:' regex ')' | '(?<' group-name '>' regex ')'
-group-name      → identifier-start identifier-continue*
-identifier-start → letter | '_'
-identifier-continue → letter | digit | '_'
-anchor          → '^' | '$' | '\b' | '\B'
-escape-sequence → '\' metacharacter | '\n' | '\r' | '\t' | '\\' | '\d' | '\D' | '\w' | '\W' | '\s' | '\S'
-metacharacter   → '.' | '*' | '+' | '?' | '|' | '(' | ')' | '[' | ']' | '{' | '}' | '^' | '$' | '\'
-number          → digit+
-digit           → '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
-letter          → 'a'..'z' | 'A'..'Z'
 ```
-
-**Key Components:**
-- `peek()` / `consume()` - Token management with lookahead
-- `parse_alternation()` - Handles `|` operator
-- `parse_concatenation()` - Sequences of patterns
-- `parse_quantified()` - Quantifier parsing with greedy/lazy support
-- `parse_atom()` - Atomic pattern parsing
-- `parse_character_class()` - Character set parsing
-- `parse_group()` - Group parsing (capturing/non-capturing/named)
 
 ### 2. AST Nodes (`matcher.py`)
 
@@ -116,12 +93,6 @@ The matcher uses a **backtracking algorithm** with generators to find matches.
 - **Greedy vs. Lazy quantifiers**: Controls the order of backtracking attempts
 - **Capture group tracking**: Records matched text for groups
 
-**Matching Process:**
-1. Start at position 0 in the input string
-2. Try to match the AST node at current position
-3. If successful, yield the end position
-4. If a later part fails, backtrack and try alternative matches
-5. Continue until a complete match is found or all possibilities exhausted
 
 ## Usage
 
@@ -178,18 +149,6 @@ matcher = parser.matcher("aaa")
 print(matcher.match())  # True
 ```
 
-## Technical Highlights
-
-### 1. **Recursive Descent Parser**
-- Clean separation of grammar rules
-- Predictive parsing with one-character lookahead
-- Comprehensive error reporting with position information
-
-### 2. **Generator-Based Backtracking**
-- Memory-efficient search using Python generators
-- Automatic backtracking without explicit state management
-- Lazy evaluation of alternative matches
-
 ## Limitations
 
 - **Performance**: Not optimized for production use (no NFA/DFA compilation)
@@ -197,8 +156,6 @@ print(matcher.match())  # True
 - **Unicode**: Basic ASCII support (can be extended for full Unicode)
 
 ## Future Enhancements
-
-Potential additions to make the project even stronger:
 
 1. **Optimization**:
    - NFA/DFA compilation for linear-time matching
@@ -215,14 +172,10 @@ Potential additions to make the project even stronger:
 
 ## References
 
-- **Compilers Course, By Suresh Purini**: ![Link](https://www.youtube.com/playlist?list=PLde1J4XOn2z0i6fc39dI6OWjEoNuaFglI)
-- **Java's Regex Engine**: ![Link](https://github.com/openjdk/jdk/blob/master/src/java.base/share/classes/java/util/regex/Pattern.java)
+- **Compilers Course, By Suresh Purini**: [Link](https://www.youtube.com/playlist?list=PLde1J4XOn2z0i6fc39dI6OWjEoNuaFglI)
+- **Java's Regex Engine**: [Link](https://github.com/openjdk/jdk/blob/master/src/java.base/share/classes/java/util/regex/Pattern.java)
 
-## License
-
-MIT License - Feel free to use this project for learning and reference.
-
-## 👤 Author
+## Author
 
 Vikrant Mehta - vikrantmehta123@gmail.com
 
