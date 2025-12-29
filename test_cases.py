@@ -1,4 +1,4 @@
-from parser import Parser
+from pattern import Parser
 import pytest
 
 def test_empty_string_matching():

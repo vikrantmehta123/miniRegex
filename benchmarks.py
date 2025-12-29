@@ -1,6 +1,6 @@
 import time
 import re
-from parser import Parser
+from pattern import Parser
 
 def benchmark(pattern_str, test_string, iterations=1000):
     """Compare our engine vs Python's re module"""

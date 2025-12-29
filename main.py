@@ -1,4 +1,4 @@
-from parser import Parser
+from pattern import Parser
 
 # # Email-like pattern
 # parser = Parser(r"[a-zA-Z0-9]+@[a-zA-Z]+\.[a-z]+")
