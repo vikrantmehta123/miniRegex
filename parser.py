@@ -19,6 +19,8 @@ class Parser:
         self.pos = 0 # Current parsing position in the pattern i.e. next char to consume
         self.length = len(pattern)
 
+        self.compiled_pattern = None
+
     def peek(self, offset=0):
         """
         "peek" a character without consuming it.
@@ -134,6 +136,29 @@ class Parser:
                 break
 
             items.append(self.parse_quantified())
+
+
+        # Coalesce adjaceny Character nodes into a single Slice node for efficiency
+        if items:
+            new_items = []
+            buffer_chars = []
+
+            for it in items:
+                if isinstance(it, Character):
+                    buffer_chars.append(it.value)
+                else:
+                    if buffer_chars:
+                        # If more than 1 chars (e.g. 'hello') then coalesce into one Slice
+                        if len(buffer_chars) == 1:
+                            new_items.append(Character(buffer_chars[0]))
+                        else:
+                            new_items.append(Slice("".join(buffer_chars)))
+                        buffer_chars = [ ]
+                    new_items.append(it)
+            if buffer_chars:
+                new_items.append(Slice("".join(buffer_chars)))
+
+            items = new_items
 
         # If we have no items, then the concatenation is Empty (matches empty string)
         if len(items) == 0:
@@ -579,9 +604,15 @@ class Parser:
         Returns:
             A Matcher object ready to perform matching
         """
-        
-        ast = self.parse()
-        return Matcher(ast, input_string)
+        if self.compiled_pattern is None:
+            raise RuntimeError("Pattern not compiled. Call compile() before creating a matcher.")
+        return Matcher(self.compiled_pattern, input_string)
+
+    def compile(self):
+        self.pos = 0
+        self.length = len(self.pattern)
+        self.compiled_pattern = self.parse()
+        return self.compiled_pattern
 
 def test_parser():
     """Test our parser with a comprehensive set of examples."""

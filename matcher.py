@@ -15,6 +15,12 @@ class Character(ASTNode):
     def __init__(self, val):
         self.value = val
 
+class Slice(ASTNode):
+    """Represents a sequence of literal characters. This is not required but it's an optimization."""
+
+    def __init__(self, text):
+        self.text = text
+
 class Empty(ASTNode):
     """Represents an empty match (matches the empty string)"""
     pass
@@ -65,7 +71,6 @@ class Anchor(ASTNode):
 
     def __init__(self, anchor_type):
         self.anchor_type = anchor_type  # One of: 'start', 'end', 'word', 'non-word'
-
 
 # endregion -------------------------------------------------------------------------------------------------
 
@@ -145,6 +150,9 @@ class Matcher:
             # A literal character like 'a'
             yield from self.match_character(node, pos)
         
+        elif isinstance(node, Slice):
+            yield from self.match_slice(node, pos)
+
         elif isinstance(node, Empty):
             # An empty match - always succeeds without consuming input
             yield from self.match_empty(node, pos)
@@ -630,3 +638,17 @@ class Matcher:
         # code will know there are no more ways to match this quantifier.
         # This signals that we need to backtrack even further, perhaps to an earlier
         # choice point in the pattern.
+
+    def match_slice(self, node:Slice, pos):
+        """
+        Faster matching for contiguous literal sequence.
+        """
+        text = node.text
+        end = pos + len(text)
+
+        if end > self.length:
+            return
+        
+        if self.input[pos:end] == text:
+            yield end
+
