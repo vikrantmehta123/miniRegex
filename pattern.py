@@ -1,15 +1,15 @@
 from matcher import *
 
 """
-The parser will use recursive descent parsing algorithm to parse a regex pattern.
+The Pattern class will use recursive descent parsing algorithm to parse a regex pattern.
 
 We allow a simplified regex grammar, which is slightly restrictive than the original grammar. 
 """
-class Parser:
+class Pattern:
     
     def __init__(self, pattern:str):
         """
-        Initialise the parser with the pattern string.
+        Initialise the Pattern parser with the pattern string.
         
         Args:
             pattern: The regex pattern string to parse
@@ -619,89 +619,89 @@ def test_parser():
     
     print("=== Basic Tests ===")
     
-    p1 = Parser("a")
+    p1 = Pattern("a")
     matcher1 = p1.matcher("a")
     print("Test 1 - 'a':", matcher1.ast, matcher1.match())
     
-    p2 = Parser("abc")
+    p2 = Pattern("abc")
     matcher2 = p2.matcher('abd')
     print("\nTest 2 - 'abc':", matcher2.ast, matcher2.match())
     
-    p3 = Parser("a|b")
+    p3 = Pattern("a|b")
     matcher3 = p3.matcher("hello")
     print("\nTest 3 - 'a|b':", matcher3.ast, matcher3.match())
     
     print("\n=== Quantifier Tests ===")
     
-    p4 = Parser("a*a")
+    p4 = Pattern("a*a")
     matcher4 = p4.matcher("aaaa")
     print("Test 4 - 'a*a':", matcher4.ast, matcher4.match())
     
-    p5 = Parser("a*?")
+    p5 = Pattern("a*?")
     ast5 = p5.parse()
     print("\nTest 5 - 'a*?':", ast5)
     
-    p6 = Parser("a{3}")
+    p6 = Pattern("a{3}")
     matcher6 = p6.matcher("aaa")
     print("\nTest 6 - 'a{3}':", matcher6.ast, matcher6.match())
     
-    p7 = Parser("a{2,5}")
+    p7 = Pattern("a{2,5}")
     ast7 = p7.parse()
     print("\nTest 7 - 'a{2,5}':", ast7)
     
     print("\n=== Character Class Tests ===")
     
-    p8 = Parser("[abc]")
+    p8 = Pattern("[abc]")
     ast8 = p8.parse()
     print("Test 8 - '[abc]':", ast8)
     
-    p9 = Parser("[a-z]")
+    p9 = Pattern("[a-z]")
     ast9 = p9.parse()
     print("\nTest 9 - '[a-z]':", ast9)
     
-    p10 = Parser("[^0-9]")
+    p10 = Pattern("[^0-9]")
     ast10 = p10.parse()
     print("\nTest 10 - '[^0-9]':", ast10)
     
     print("\n=== Group Tests ===")
     
-    p11 = Parser("(abc)")
+    p11 = Pattern("(abc)")
     ast11 = p11.parse()
     print("Test 11 - '(abc)':", ast11)
     
-    p12 = Parser("(?:abc)")
+    p12 = Pattern("(?:abc)")
     ast12 = p12.parse()
     print("\nTest 12 - '(?:abc)':", ast12)
     
-    p13 = Parser("(?<name>abc)")
+    p13 = Pattern("(?<name>abc)")
     ast13 = p13.parse()
     print("\nTest 13 - '(?<name>abc)':", ast13)
     
     print("\n=== Escape Sequence Tests ===")
     
-    p14 = Parser("\\d+")
+    p14 = Pattern("\\d+")
     ast14 = p14.parse()
     print("Test 14 - '\\d+':", ast14)
     
-    p15 = Parser("\\bword\\b")
+    p15 = Pattern("\\bword\\b")
     ast15 = p15.parse()
     print("\nTest 15 - '\\bword\\b':", ast15)
     
-    p16 = Parser("\\*\\+\\?")
+    p16 = Pattern("\\*\\+\\?")
     ast16 = p16.parse()
     print("\nTest 16 - '\\*\\+\\?':", ast16)
     
     print("\n=== Complex Pattern Tests ===")
     
-    p17 = Parser("[a-z]+@[a-z]+\\.[a-z]+")
+    p17 = Pattern("[a-z]+@[a-z]+\\.[a-z]+")
     ast17 = p17.parse()
     print("Test 17 - '[a-z]+@[a-z]+\\.[a-z]+':", ast17)
     
-    p18 = Parser("(cat|dog)s?")
+    p18 = Pattern("(cat|dog)s?")
     ast18 = p18.parse()
     print("\nTest 18 - '(cat|dog)s?':", ast18)
     
-    p19 = Parser("((a|b)+c)")
+    p19 = Pattern("((a|b)+c)")
     ast19 = p19.parse()
     print("\nTest 19 - '((a|b)+c)':", ast19)
 
